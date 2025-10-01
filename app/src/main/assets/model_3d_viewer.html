@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>3D Model Viewer</title>
+  <!-- Cargamos la librería directamente desde unpkg -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; overflow: hidden; background-color: #f0f0f0; } /* Fondo gris claro para ver si carga */
+    model-viewer { width: 100vw; height: 100vh; display: block; background-color: white; } /* Ocupa todo el espacio y tiene fondo blanco para el modelo */
+    .error-message { color: red; font-family: Arial, sans-serif; font-size: 18px; text-align: center; margin-top: 20%; display: none; } /* Mensaje de error oculto por defecto */
+  </style>
+</head>
+<body>
+  <!-- Mensaje de error si model-viewer no se carga -->
+  <div id="errorMessage" class="error-message">
+    Error: La librería <model-viewer> no se pudo cargar o el modelo no es compatible.
+  </div>
+
+  <!-- El modelo se cargará aquí -->
+  <model-viewer id="modelViewer"
+                ar="false"
+                camera-controls
+                auto-rotate
+                environment-image="neutral"
+                shadow-intensity="1"
+                shadow-softness="0.5">
+  </model-viewer>
+
+  <script type="module"> // <-- Asegura que el script se ejecute solo si el módulo se carga
+    console.log("model-viewer HTML cargado");
+
+    // Verifica si model-viewer está definido
+    if (window.customElements.get('model-viewer')) {
+      console.log("model-viewer está disponible");
+      // Oculta el mensaje de error si la librería se carga
+      document.getElementById('errorMessage').style.display = 'none';
+    } else {
+      console.error("model-viewer NO está disponible");
+      // Muestra el mensaje de error si la librería no se carga
+      document.getElementById('errorMessage').style.display = 'block';
+    }
+
+    // Función global para que Kotlin la llame
+    window.loadModelAtPath = function(url) {
+      console.log("Cargando modelo desde URL: " + url);
+      const modelViewer = document.getElementById('modelViewer');
+      if (modelViewer) {
+        modelViewer.src = url; // Asigna la URL directamente
+        console.log("Modelo asignado a src");
+      } else {
+        console.error("No se encontró el elemento model-viewer");
+      }
+    };
+
+    // Opcional: Escuchar cuando el modelo termina de cargar
+    const modelViewer = document.getElementById('modelViewer');
+    if (modelViewer) {
+      modelViewer.addEventListener('load', () => {
+        console.log("Modelo 3D cargado exitosamente");
+      });
+
+      modelViewer.addEventListener('error', (event) => {
+        console.error("Error al cargar el modelo:", event);
+        // Opcional: Mostrar mensaje de error en la página
+        document.getElementById('errorMessage').style.display = 'block';
+        document.getElementById('modelViewer').style.display = 'none';
+      });
+    }
+  </script>
+
+  <script nomodule>
+    // Si no hay soporte para módulos, también mostramos el error
+    document.getElementById('errorMessage').style.display = 'block';
+    document.getElementById('modelViewer').style.display = 'none';
+    console.error("Este navegador no soporta módulos JavaScript, necesario para model-viewer.");
+  </script>
+</body>
+</html>

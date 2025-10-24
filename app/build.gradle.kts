@@ -1,7 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    id("kotlin-kapt")
+    // ❌ Eliminamos esta línea
+    // alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -35,7 +37,12 @@ android {
         jvmTarget = "1.8"
     }
     buildFeatures {
-        compose = true
+        compose = true // ✅ Esto habilita Compose
+    }
+
+    // ✅ Definimos la versión del compilador de Compose aquí
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get() // ✅ Corregido
     }
 }
 
@@ -50,14 +57,25 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
-    // 👇 ViewModel para Jetpack Compose
+    // ViewModel para Jetpack Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
-    // 👇 Navigation Component para Jetpack Compose
+    // Navigation Component para Jetpack Compose
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    implementation("com.koushikdutta.async:androidasync:2.+")
+    // Material Icons Extended para más iconos
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
+    // Room Database para almacenamiento local
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    
+    // DataStore para preferencias
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // Coil para cargar imágenes
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

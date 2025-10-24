@@ -1,119 +1,239 @@
 package com.example.minefarms.ui.screens
 
-import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.os.Build // Importa Build para verificar la versión
-import android.util.Log
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.example.minefarms.LocalAssetServer // Importa el Local
-import com.example.minefarms.model.Farm
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.minefarms.data.database.AppDatabase
+import com.example.minefarms.data.entity.FavoriteEntity
 import com.example.minefarms.repository.FarmRepository
-import java.io.ByteArrayOutputStream
+import com.example.minefarms.ui.viewmodel.AuthViewModel
+import com.example.minefarms.utils.ImageUtils
+import kotlinx.coroutines.launch
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FarmDetailScreen(farmId: Int) {
-    val farm = FarmRepository.getFarms().find { it.id == farmId } ?: return
-    val assetServer = LocalAssetServer.current // Obtiene el servidor local
-
-    var rotation by remember { mutableFloatStateOf(0f) }
+fun FarmDetailScreen(
+    farmId: Int,
+    onBack: () -> Unit = {},
+    authViewModel: AuthViewModel = viewModel()
+) {
+    val farm = FarmRepository.getFarmById(farmId)
     val context = LocalContext.current
-    val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    val rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-
-    // Registrar sensor de giroscopio
-    DisposableEffect(rotationVectorSensor) {
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                rotation = event.values[0] * 180 / Math.PI.toFloat()
+    val authState by authViewModel.authState.collectAsState()
+    val userId = authState.userId
+    
+    val scope = rememberCoroutineScope()
+    val database = remember { AppDatabase.getDatabase(context) }
+    val favoriteDao = database.favoriteDao()
+    
+    var isLiked by remember { mutableStateOf(false) }
+    var isSaved by remember { mutableStateOf(false) }
+    
+    // Cargar estado inicial desde la base de datos
+    LaunchedEffect(farmId, userId) {
+        userId?.let { uid ->
+            favoriteDao.getFavoritesByUser(uid).collect { favorites ->
+                val favorite = favorites.find { it.farmId == farmId }
+                isLiked = favorite?.isLiked == true
+                isSaved = favorite?.isSaved == true
             }
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-        sensorManager.registerListener(listener, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL)
-        onDispose { sensorManager.unregisterListener(listener) }
+    }
+
+    if (farm == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Granja no encontrada")
+        }
+        return
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(farm.name) }) }
+        topBar = {
+            TopAppBar(
+                title = { Text(farm.name, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { 
+                        userId?.let { uid ->
+                            scope.launch {
+                                val newLikedState = !isLiked
+                                // Crear o actualizar el registro
+                                val favorite = FavoriteEntity(
+                                    userId = uid,
+                                    farmId = farmId,
+                                    isLiked = newLikedState,
+                                    isSaved = isSaved
+                                )
+                                favoriteDao.insertFavorite(favorite)
+                                isLiked = newLikedState
+                            }
+                        }
+                    }) {
+                        Icon(
+                            if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = "Me gusta",
+                            tint = if (isLiked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = { 
+                        userId?.let { uid ->
+                            scope.launch {
+                                val newSavedState = !isSaved
+                                // Crear o actualizar el registro
+                                val favorite = FavoriteEntity(
+                                    userId = uid,
+                                    farmId = farmId,
+                                    isLiked = isLiked,
+                                    isSaved = newSavedState
+                                )
+                                favoriteDao.insertFavorite(favorite)
+                                isSaved = newSavedState
+                            }
+                        }
+                    }) {
+                        Icon(
+                            if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                            contentDescription = "Guardar",
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(farm.description, style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Modelo 3D usando WebView y model-viewer
-            AndroidView(
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true // Necesario para model-viewer
-                        // Añade esta línea para permitir contenido mixto (aunque no debería ser necesaria para localhost)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        }
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                super.onPageFinished(view, url)
-                                Log.d("WebView", "Página HTML cargada: $url")
-                                // Intentar cargar el modelo usando la URL del servidor local
-                                val modelFileName = farm.modelFileName // Usa el campo String
-                                val modelUrl = "${assetServer.getBaseUrl()}/models/$modelFileName.glb" // ✅ URL del servidor local
-                                Log.d("WebView", "Intentando cargar modelo desde: $modelUrl")
-
-                                // Llamamos a la función JavaScript para cargar el modelo
-                                view?.evaluateJavascript("loadModelAtPath('$modelUrl')", null)
-                            }
-
-                            // ✅ Versión compatible para onReceivedError
-                            override fun onReceivedError(
-                                view: WebView?,
-                                errorCode: Int,
-                                description: String?,
-                                failingUrl: String?
-                            ) {
-                                super.onReceivedError(view, errorCode, description, failingUrl)
-                                Log.e("WebView", "Error en WebView: $errorCode - $description en URL: $failingUrl")
-                            }
-                        }
-                        loadUrl("file:///android_asset/model_3d_viewer.html")
-                    }
-                },
-                update = { webView ->
-                    // Aquí puedes aplicar la rotación si lo manejas manualmente en JS
-                    // webView.evaluateJavascript("javascript:setRotation(${rotation})", null)
-                },
+            val imageId = ImageUtils.getDrawableId(context, farm.imageResourceName)
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón para tutorial
-            Button(
-                onClick = {
-                    // Aquí puedes abrir el tutorial en navegador
-                },
-                modifier = Modifier.fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Ver Tutorial")
+                if (imageId != 0) {
+                    Image(
+                        painter = painterResource(id = imageId),
+                        contentDescription = farm.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text("⛏️🌾", style = MaterialTheme.typography.displayLarge)
+                }
             }
+
+            Card {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Descripción", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(farm.description, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                InfoCard("⚙️", "Dificultad", farm.difficulty, Modifier.weight(1f))
+                InfoCard("📦", "Producción", farm.productionRate, Modifier.weight(1f))
+            }
+
+            Card {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("��️ Materiales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    farm.materials.forEach { material ->
+                        Text("• $material", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            Card {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("✨ Produce", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(farm.production, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            if (farm.process.isNotBlank()) {
+                Card {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("🔧 Proceso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(farm.process, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            if (farm.tags.isNotEmpty()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    farm.tags.take(3).forEach { tag ->
+                        AssistChip(onClick = { }, label = { Text(tag) })
+                    }
+                }
+            }
+
+            if (farm.tutorialUrl.isNotBlank()) {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(farm.tutorialUrl))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.PlayArrow, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Ver Tutorial en YouTube")
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun InfoCard(icon: String, label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(icon, style = MaterialTheme.typography.titleLarge)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         }
     }
 }

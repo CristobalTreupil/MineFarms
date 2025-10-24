@@ -16,29 +16,63 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = androidx.compose.ui.graphics.Color(0xFF4CAF50), // Verde de Minecraft
+    primary = MinecraftGreen60,
     onPrimary = androidx.compose.ui.graphics.Color.White,
-    secondary = androidx.compose.ui.graphics.Color(0xFF8BC34A), // Verde claro
-    onSecondary = androidx.compose.ui.graphics.Color.Black,
-    tertiary = androidx.compose.ui.graphics.Color(0xFF795548), // Marrón tierra
+    primaryContainer = MinecraftGreen80,
+    onPrimaryContainer = MinecraftGreen40,
+    
+    secondary = MinecraftDirt60,
+    onSecondary = androidx.compose.ui.graphics.Color.White,
+    secondaryContainer = MinecraftDirt80,
+    onSecondaryContainer = MinecraftDirt40,
+    
+    tertiary = MinecraftGold60,
     onTertiary = androidx.compose.ui.graphics.Color.White,
-    background = androidx.compose.ui.graphics.Color(0xFFF5F5F5),
-    surface = androidx.compose.ui.graphics.Color(0xFFFAFAFA),
-    onBackground = androidx.compose.ui.graphics.Color(0xFF1B1B1B),
-    onSurface = androidx.compose.ui.graphics.Color(0xFF1B1B1B),
+    tertiaryContainer = MinecraftGold80,
+    onTertiaryContainer = MinecraftGold40,
+    
+    error = MinecraftRedstone60,
+    onError = androidx.compose.ui.graphics.Color.White,
+    errorContainer = MinecraftRedstone80,
+    onErrorContainer = MinecraftRedstone40,
+    
+    background = MinecraftSkyLight,
+    onBackground = MinecraftStone40,
+    
+    surface = androidx.compose.ui.graphics.Color.White,
+    onSurface = MinecraftStone40,
+    surfaceVariant = MinecraftStone80,
+    onSurfaceVariant = MinecraftStone60,
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = androidx.compose.ui.graphics.Color(0xFF689F38), // Verde oscuro
-    onPrimary = androidx.compose.ui.graphics.Color.White,
-    secondary = androidx.compose.ui.graphics.Color(0xFF9CCC65), // Verde claro
-    onSecondary = androidx.compose.ui.graphics.Color.Black,
-    tertiary = androidx.compose.ui.graphics.Color(0xFF8D6E63), // Marrón oscuro
-    onTertiary = androidx.compose.ui.graphics.Color.White,
-    background = androidx.compose.ui.graphics.Color(0xFF121212),
-    surface = androidx.compose.ui.graphics.Color(0xFF1E1E1E),
-    onBackground = androidx.compose.ui.graphics.Color(0xFFE0E0E0),
-    onSurface = androidx.compose.ui.graphics.Color(0xFFE0E0E0),
+    primary = MinecraftGreen80,
+    onPrimary = MinecraftGreen40,
+    primaryContainer = MinecraftGreen40,
+    onPrimaryContainer = MinecraftGreen80,
+    
+    secondary = MinecraftDirt80,
+    onSecondary = MinecraftDirt40,
+    secondaryContainer = MinecraftDirt40,
+    onSecondaryContainer = MinecraftDirt80,
+    
+    tertiary = MinecraftGold80,
+    onTertiary = MinecraftGold40,
+    tertiaryContainer = MinecraftGold40,
+    onTertiaryContainer = MinecraftGold80,
+    
+    error = MinecraftRedstone80,
+    onError = MinecraftRedstone40,
+    errorContainer = MinecraftRedstone40,
+    onErrorContainer = MinecraftRedstone80,
+    
+    background = MinecraftCave,
+    onBackground = MinecraftStone80,
+    
+    surface = MinecraftStone40,
+    onSurface = MinecraftStone80,
+    surfaceVariant = MinecraftStone60,
+    onSurfaceVariant = MinecraftStone80,
 )
 
 @Composable

@@ -1,11 +1,15 @@
 package com.example.minefarms.model
 
-data class Farm (
+data class Farm(
     val id: Int,
     val name: String,
     val description: String,
+    val materials: List<String>,
+    val difficulty: String,
+    val production: String,
+    val productionRate: String,
     val process: String,
-    val purpose: String,
     val tutorialUrl: String,
-    val modelFileName: String // ✅ Cambia el nombre y tipo del campo
+    val imageResourceName: String,
+    val tags: List<String>
 )

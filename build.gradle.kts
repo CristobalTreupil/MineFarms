@@ -2,5 +2,6 @@
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.kotlin.compose) apply false
+    // ❌ Eliminamos esta línea del nivel del proyecto
+    // alias(libs.plugins.kotlin.compose) apply false
 }

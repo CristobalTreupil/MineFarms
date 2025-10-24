@@ -2,12 +2,12 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>3D Model Viewer</title>
+  <title>3D Model Viewer - Ejemplo Público</title>
   <!-- Cargamos la librería directamente desde unpkg -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <style>
-    body { margin: 0; padding: 0; overflow: hidden; background-color: #f0f0f0; } /* Fondo gris claro para ver si carga */
-    model-viewer { width: 100vw; height: 100vh; display: block; background-color: white; } /* Ocupa todo el espacio y tiene fondo blanco para el modelo */
+    body { margin: 0; padding: 0; overflow: hidden; background-color: #b7ffcc; } /* Fondo gris claro para ver si carga */
+    model-viewer { width: 100vw; height: 100vh; display: block; background-color: rgb(92, 31, 31); } /* Ocupa todo el espacio y tiene fondo blanco para el modelo */
     .error-message { color: red; font-family: Arial, sans-serif; font-size: 18px; text-align: center; margin-top: 20%; display: none; } /* Mensaje de error oculto por defecto */
   </style>
 </head>
@@ -24,7 +24,8 @@
                 auto-rotate
                 environment-image="neutral"
                 shadow-intensity="1"
-                shadow-softness="0.5">
+                shadow-softness="0.5"
+                src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"> <!-- ✅ Carga el modelo público directamente -->
   </model-viewer>
 
   <script type="module"> // <-- Asegura que el script se ejecute solo si el módulo se carga
@@ -41,18 +42,6 @@
       document.getElementById('errorMessage').style.display = 'block';
     }
 
-    // Función global para que Kotlin la llame
-    window.loadModelAtPath = function(url) {
-      console.log("Cargando modelo desde URL: " + url);
-      const modelViewer = document.getElementById('modelViewer');
-      if (modelViewer) {
-        modelViewer.src = url; // Asigna la URL directamente
-        console.log("Modelo asignado a src");
-      } else {
-        console.error("No se encontró el elemento model-viewer");
-      }
-    };
-
     // Opcional: Escuchar cuando el modelo termina de cargar
     const modelViewer = document.getElementById('modelViewer');
     if (modelViewer) {
@@ -64,7 +53,7 @@
         console.error("Error al cargar el modelo:", event);
         // Opcional: Mostrar mensaje de error en la página
         document.getElementById('errorMessage').style.display = 'block';
-        document.getElementById('modelViewer').style.display = 'none';
+        // document.getElementById('modelViewer').style.display = 'none'; // Opcional: ocultar el visor
       });
     }
   </script>

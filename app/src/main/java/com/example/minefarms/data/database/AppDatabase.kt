@@ -20,7 +20,7 @@ import com.example.minefarms.data.entity.UserFarmEntity
         UserFarmEntity::class,
         FarmEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

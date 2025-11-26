@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -153,7 +154,8 @@ fun ProfileScreen(
                         onNavigateToFarm = onNavigateToFarm
                     )
                     1 -> UserFarmsContent(
-                        userId = authState.userId
+                        userId = authState.userId,
+                        onNavigateToFarm = onNavigateToFarm
                     )
                     2 -> SavedFarmsContent(
                         userId = authState.userId,
@@ -257,7 +259,16 @@ private fun FavoritesContent(
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
-    val likedFarms by database.favoriteDao().getLikedFarms(userId ?: 0L).collectAsState(initial = emptyList())
+    val likedFarmEntities by database.favoriteDao().getLikedFarms(userId ?: 0L).collectAsState(initial = emptyList())
+    val farmRepository = remember { FarmRepository(database.farmDao()) }
+    val allFarms by farmRepository.getAllFarms().collectAsState(initial = emptyList())
+    
+    // Filtrar granjas que están en favoritos
+    val likedFarms = remember(allFarms, likedFarmEntities) {
+        allFarms.filter { farm -> 
+            likedFarmEntities.any { it.farmId == farm.id }
+        }
+    }
     
     Column(
         modifier = modifier
@@ -277,15 +288,12 @@ private fun FavoritesContent(
                 message = "Aún no has marcado ninguna granja como favorita.\n\nExplora las granjas y marca las que más te gusten."
             )
         } else {
-            likedFarms.forEach { favorite ->
-                val farm = FarmRepository.getFarmById(favorite.farmId)
-                farm?.let {
-                    FarmCardItem(
-                        farm = it,
-                        onClick = { onNavigateToFarm(it.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+            likedFarms.forEach { farm ->
+                FarmCardItem(
+                    farm = farm,
+                    onClick = { onNavigateToFarm(farm.id.toInt()) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
@@ -294,11 +302,14 @@ private fun FavoritesContent(
 @Composable
 private fun UserFarmsContent(
     userId: Long?,
+    onNavigateToFarm: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
     val userFarms by database.userFarmDao().getUserFarms(userId ?: 0L).collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    val farmRepository = remember { FarmRepository(database.farmDao()) }
     
     Column(
         modifier = modifier
@@ -321,7 +332,27 @@ private fun UserFarmsContent(
             userFarms.forEach { userFarm ->
                 UserFarmCard(
                     userFarm = userFarm,
-                    onClick = { /* TODO: Navegar a detalle */ }
+                    onClick = { 
+                        // Convertir UserFarm a Farm y guardar en tabla farms para poder navegarlo
+                        scope.launch {
+                            val farm = Farm(
+                                id = 0, // Auto-generado por Room
+                                name = userFarm.name,
+                                description = userFarm.description,
+                                materials = userFarm.materials.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                                difficulty = userFarm.difficulty,
+                                production = userFarm.production,
+                                productionRate = "Variable",
+                                process = "Granja personalizada creada por usuario",
+                                tutorialUrl = userFarm.tutorialUrl ?: "",
+                                imageResourceName = "user_farm_${userFarm.id}",
+                                tags = listOf("Usuario", "Personalizada"),
+                                imageUri = userFarm.imageUri // Pasar el URI real de la imagen
+                            )
+                            val farmId = farmRepository.insertFarm(farm)
+                            onNavigateToFarm(farmId.toInt())
+                        }
+                    }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -337,7 +368,16 @@ private fun SavedFarmsContent(
 ) {
     val context = LocalContext.current
     val database = remember { AppDatabase.getDatabase(context) }
-    val savedFarms by database.favoriteDao().getSavedFarms(userId ?: 0L).collectAsState(initial = emptyList())
+    val savedFarmEntities by database.favoriteDao().getSavedFarms(userId ?: 0L).collectAsState(initial = emptyList())
+    val farmRepository = remember { FarmRepository(database.farmDao()) }
+    val allFarms by farmRepository.getAllFarms().collectAsState(initial = emptyList())
+    
+    // Filtrar granjas que están guardadas
+    val savedFarms = remember(allFarms, savedFarmEntities) {
+        allFarms.filter { farm -> 
+            savedFarmEntities.any { it.farmId == farm.id }
+        }
+    }
     
     Column(
         modifier = modifier
@@ -357,19 +397,16 @@ private fun SavedFarmsContent(
                 message = "Aún no has guardado ninguna granja para ver más tarde.\n\nUsa el botón de guardar en cualquier granja."
             )
         } else {
-            savedFarms.forEach { favorite ->
-                val farm = FarmRepository.getFarmById(favorite.farmId)
-                farm?.let {
-                    FarmCardItem(
-                        farm = it,
-                        onClick = { onNavigateToFarm(it.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+            savedFarms.forEach { farm ->
+                FarmCardItem(
+                    farm = farm,
+                    onClick = { onNavigateToFarm(farm.id.toInt()) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
-}
+} 
 
 @Composable
 private fun EmptyStateMessage(

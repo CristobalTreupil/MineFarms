@@ -1,9 +1,125 @@
 package com.example.minefarms.repository
 
+import com.example.minefarms.data.dao.FarmDao
+import com.example.minefarms.data.entity.FarmEntity
 import com.example.minefarms.model.Farm
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
-object FarmRepository {
-    fun getFarms(): List<Farm> {
+/**
+ * Repositorio para manejar operaciones de granjas
+ * Implementa persistencia interna con Room según arquitectura MVVM
+ */
+class FarmRepository(private val farmDao: FarmDao) {
+    
+    private val gson = Gson()
+    
+    /**
+     * Obtiene todas las granjas como Flow
+     */
+    fun getAllFarms(): Flow<List<Farm>> {
+        return farmDao.getAllFarms().map { entities ->
+            entities.map { it.toFarm() }
+        }
+    }
+    
+    /**
+     * Obtiene una granja por ID
+     */
+    fun getFarmById(farmId: Long): Flow<Farm?> {
+        return farmDao.getFarmById(farmId).map { it?.toFarm() }
+    }
+    
+    /**
+     * Busca granjas por query
+     */
+    fun searchFarms(query: String): Flow<List<Farm>> {
+        return farmDao.searchFarms(query).map { entities ->
+            entities.map { it.toFarm() }
+        }
+    }
+    
+    /**
+     * Inserta una nueva granja
+     */
+    suspend fun insertFarm(farm: Farm): Long {
+        return farmDao.insertFarm(farm.toEntity())
+    }
+    
+    /**
+     * Actualiza una granja existente
+     */
+    suspend fun updateFarm(farm: Farm) {
+        farmDao.updateFarm(farm.toEntity())
+    }
+    
+    /**
+     * Elimina una granja
+     */
+    suspend fun deleteFarm(farm: Farm) {
+        farmDao.deleteFarmById(farm.id)
+    }
+    
+    /**
+     * Inicializa la base de datos con granjas predefinidas
+     */
+    suspend fun initializeDefaultFarms() {
+        val count = farmDao.getFarmsCount()
+        if (count == 0) {
+            val defaultFarms = getDefaultFarms()
+            farmDao.insertFarms(defaultFarms.map { it.toEntity() })
+        }
+    }
+    
+    /**
+     * Convierte FarmEntity a Farm (modelo de UI)
+     */
+    private fun FarmEntity.toFarm(): Farm {
+        val materialsType = object : TypeToken<List<String>>() {}.type
+        val tagsType = object : TypeToken<List<String>>() {}.type
+        
+        return Farm(
+            id = this.id,
+            name = this.name,
+            description = this.description,
+            materials = gson.fromJson(this.materials, materialsType),
+            difficulty = this.difficulty,
+            production = this.production,
+            productionRate = this.productionRate,
+            process = this.process,
+            tutorialUrl = this.tutorialUrl,
+            imageResourceName = this.imageResourceName,
+            tags = gson.fromJson(this.tags, tagsType),
+            imageUri = this.imageUri
+        )
+    }
+    
+    /**
+     * Convierte Farm a FarmEntity
+     */
+    private fun Farm.toEntity(): FarmEntity {
+        return FarmEntity(
+            id = 0, // Dejar que Room genere el ID automáticamente
+            name = this.name,
+            description = this.description,
+            materials = gson.toJson(this.materials),
+            difficulty = this.difficulty,
+            production = this.production,
+            productionRate = this.productionRate,
+            process = this.process,
+            tutorialUrl = this.tutorialUrl,
+            imageResourceName = this.imageResourceName,
+            tags = gson.toJson(this.tags),
+            imageUri = this.imageUri
+        )
+    }
+    
+    /**
+     * Lista de granjas predefinidas
+     */
+    private fun getDefaultFarms(): List<Farm> {
         return listOf(
             Farm(
                 id = 1,
@@ -168,9 +284,5 @@ object FarmRepository {
                 tags = listOf("Mob", "Océano", "Experiencia", "Muy Difícil")
             )
         )
-    }
-    
-    fun getFarmById(id: Int): Farm? {
-        return getFarms().find { it.id == id }
     }
 }

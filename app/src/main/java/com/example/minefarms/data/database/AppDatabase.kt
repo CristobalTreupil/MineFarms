@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.minefarms.data.dao.FarmDao
 import com.example.minefarms.data.dao.FavoriteDao
 import com.example.minefarms.data.dao.UserDao
 import com.example.minefarms.data.dao.UserFarmDao
+import com.example.minefarms.data.entity.FarmEntity
 import com.example.minefarms.data.entity.FavoriteEntity
 import com.example.minefarms.data.entity.UserEntity
 import com.example.minefarms.data.entity.UserFarmEntity
@@ -15,15 +17,17 @@ import com.example.minefarms.data.entity.UserFarmEntity
     entities = [
         UserEntity::class,
         FavoriteEntity::class,
-        UserFarmEntity::class
+        UserFarmEntity::class,
+        FarmEntity::class
     ],
-    version = 3,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun userFarmDao(): UserFarmDao
+    abstract fun farmDao(): FarmDao
     
     companion object {
         @Volatile

@@ -23,7 +23,9 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val authState by authViewModel.authState.collectAsState()
-    val startDestination = "login"
+    
+    // Determinar la pantalla inicial según el estado de autenticación
+    val startDestination = if (authState.isLoggedIn) "farmList" else "login"
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
@@ -82,9 +84,10 @@ fun AppNavigation(
         }
         
         composable("farmDetail/{farmId}") { backStackEntry ->
-            val farmId = backStackEntry.arguments?.getString("farmId")?.toIntOrNull() ?: 0
+            val farmId = backStackEntry.arguments?.getString("farmId")?.toLongOrNull() ?: 0L
             FarmDetailScreen(
                 farmId = farmId,
+                farmViewModel = farmViewModel,
                 onBack = { navController.popBackStack() },
                 authViewModel = authViewModel
             )

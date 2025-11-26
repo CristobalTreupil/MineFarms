@@ -34,6 +34,24 @@ fun FarmListScreen(
     onCreateFarmClick: () -> Unit = {}
 ) {
     val farms by viewModel.farms.collectAsState()
+    val isInitialized by viewModel.isInitialized.collectAsState()
+    
+    // Mostrar loading mientras se inicializan las granjas
+    if (!isInitialized || farms.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator()
+                Text("Inicializando granjas...")
+            }
+        }
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -96,7 +114,7 @@ fun FarmListScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(farms, key = { it.id }) { farm ->
-                FarmListItem(farm = farm, onClick = { onFarmClick(farm.id) })
+                FarmListItem(farm = farm, onClick = { onFarmClick(farm.id.toInt()) })
             }
         }
     }
@@ -105,7 +123,9 @@ fun FarmListScreen(
 @Composable
 fun FarmListItem(farm: Farm, onClick: () -> Unit) {
     val context = LocalContext.current
-    val imageId = ImageUtils.getDrawableId(context, farm.imageResourceName)
+    val imageId = remember(farm.imageResourceName) { 
+        ImageUtils.getDrawableId(context, farm.imageResourceName)
+    }
     
     Card(
         onClick = onClick,

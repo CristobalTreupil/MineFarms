@@ -251,8 +251,16 @@ fun RegisterScreen(
                                 imeAction = ImeAction.Next
                             ),
                             singleLine = true,
+                            isError = email.isNotBlank() && !email.endsWith("@gmail.com"),
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            supportingText = {
+                                if (email.isNotBlank() && !email.endsWith("@gmail.com")) {
+                                    Text("Debe ser un correo @gmail.com", color = MaterialTheme.colorScheme.error)
+                                } else {
+                                    Text("Ejemplo: usuario@gmail.com")
+                                }
+                            }
                         )
                         
                         // Campo de contraseña
@@ -392,7 +400,7 @@ fun RegisterScreen(
                             shape = RoundedCornerShape(12.dp),
                             enabled = !isLoading && 
                                 username.isNotBlank() && 
-                                email.isNotBlank() && 
+                                email.endsWith("@gmail.com") && 
                                 password.length >= 6 && 
                                 password == confirmPassword &&
                                 displayName.isNotBlank()

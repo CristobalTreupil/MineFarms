@@ -20,13 +20,34 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Configuración para firma de APK
+    signingConfigs {
+        create("release") {
+            // Para producción, estas credenciales deben estar en gradle.properties
+            // o variables de entorno, no hardcoded aquí
+            storeFile = file("../minefarms.keystore") // Si tienes keystore
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "minefarms123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "minefarms"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "minefarms123"
+        }
+    }
+
     buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Comentar la siguiente línea si no tienes keystore configurado
+            // signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -76,6 +97,14 @@ dependencies {
     
     // Coil para cargar imágenes
     implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Retrofit para consumo de API REST
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    
+    // Gson para JSON
+    implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.example.minefarms.data.database.AppDatabase
 import com.example.minefarms.data.entity.FavoriteEntity
 import com.example.minefarms.repository.FarmRepository
@@ -32,47 +33,75 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmDetailScreen(
-    farmId: Int,
+    farmId: Long,
+    farmViewModel: com.example.minefarms.viewmodel.FarmViewModel,
     onBack: () -> Unit = {},
     authViewModel: AuthViewModel = viewModel()
 ) {
-    val farm = FarmRepository.getFarmById(farmId)
     val context = LocalContext.current
     val authState by authViewModel.authState.collectAsState()
     val userId = authState.userId
     
+    // Obtener la granja desde el ViewModel - usar remember para evitar llamadas repetidas
+    val farmFlow = remember(farmId) { farmViewModel.getFarmById(farmId) }
+    val farm by farmFlow.collectAsState()
+    
     val scope = rememberCoroutineScope()
     val database = remember { AppDatabase.getDatabase(context) }
-    val favoriteDao = database.favoriteDao()
+    val favoriteDao = remember { database.favoriteDao() }
     
-    var isLiked by remember { mutableStateOf(false) }
-    var isSaved by remember { mutableStateOf(false) }
-    
-    // Cargar estado inicial desde la base de datos
-    LaunchedEffect(farmId, userId) {
-        userId?.let { uid ->
-            favoriteDao.getFavoritesByUser(uid).collect { favorites ->
-                val favorite = favorites.find { it.farmId == farmId }
-                isLiked = favorite?.isLiked == true
-                isSaved = favorite?.isSaved == true
-            }
+    // Estado derivado de favoritos - usar remember para evitar recrear el Flow
+    val favoritesFlow = remember(userId) {
+        if (userId != null) {
+            favoriteDao.getFavoritesByUser(userId)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
         }
     }
+    val favorites by favoritesFlow.collectAsState(initial = emptyList())
+    
+    val currentFavorite = remember(favorites, farmId) {
+        favorites.find { it.farmId == farmId }
+    }
+    val isLiked = currentFavorite?.isLiked ?: false
+    val isSaved = currentFavorite?.isSaved ?: false
 
+    // Si la granja no está cargada, mostrar loading
     if (farm == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Granja no encontrada")
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("MineFarms", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         }
         return
     }
+    
+    // En este punto sabemos que farm no es null
+    val currentFarm = farm!!
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(farm.name, fontWeight = FontWeight.Bold) },
+                title = { Text(currentFarm.name, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver")
@@ -91,7 +120,6 @@ fun FarmDetailScreen(
                                     isSaved = isSaved
                                 )
                                 favoriteDao.insertFavorite(favorite)
-                                isLiked = newLikedState
                             }
                         }
                     }) {
@@ -113,7 +141,6 @@ fun FarmDetailScreen(
                                     isSaved = newSavedState
                                 )
                                 favoriteDao.insertFavorite(favorite)
-                                isSaved = newSavedState
                             }
                         }
                     }) {
@@ -138,7 +165,7 @@ fun FarmDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            val imageId = ImageUtils.getDrawableId(context, farm.imageResourceName)
+            // Cargar imagen desde URI (granjas de usuario) o desde drawable (granjas predefinidas)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -147,34 +174,49 @@ fun FarmDetailScreen(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (imageId != 0) {
+                if (currentFarm.imageUri != null) {
+                    // Imagen de galería (granja de usuario)
                     Image(
-                        painter = painterResource(id = imageId),
-                        contentDescription = farm.name,
+                        painter = rememberAsyncImagePainter(android.net.Uri.parse(currentFarm.imageUri)),
+                        contentDescription = currentFarm.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text("⛏️🌾", style = MaterialTheme.typography.displayLarge)
+                    val imageName = currentFarm.imageResourceName
+                    val imageId = remember(imageName) {
+                        ImageUtils.getDrawableId(context, imageName)
+                    }
+                    
+                    if (imageId != 0) {
+                        Image(
+                            painter = painterResource(id = imageId),
+                            contentDescription = currentFarm.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text("⛏️🌾", style = MaterialTheme.typography.displayLarge)
+                    }
                 }
             }
 
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Descripción", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(farm.description, style = MaterialTheme.typography.bodyMedium)
+                    Text(currentFarm.description, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoCard("⚙️", "Dificultad", farm.difficulty, Modifier.weight(1f))
-                InfoCard("📦", "Producción", farm.productionRate, Modifier.weight(1f))
+                InfoCard("⚙️", "Dificultad", currentFarm.difficulty, Modifier.weight(1f))
+                InfoCard("📦", "Producción", currentFarm.productionRate, Modifier.weight(1f))
             }
 
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("��️ Materiales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    farm.materials.forEach { material ->
+                    Text("🛠️ Materiales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    for (material in currentFarm.materials) {
                         Text("• $material", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
@@ -183,31 +225,31 @@ fun FarmDetailScreen(
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("✨ Produce", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(farm.production, style = MaterialTheme.typography.bodyMedium)
+                    Text(currentFarm.production, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
-            if (farm.process.isNotBlank()) {
+            if (currentFarm.process.isNotBlank()) {
                 Card {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("🔧 Proceso", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(farm.process, style = MaterialTheme.typography.bodyMedium)
+                        Text(currentFarm.process, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
-            if (farm.tags.isNotEmpty()) {
+            if (currentFarm.tags.isNotEmpty()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    farm.tags.take(3).forEach { tag ->
+                    for (tag in currentFarm.tags.take(3)) {
                         AssistChip(onClick = { }, label = { Text(tag) })
                     }
                 }
             }
 
-            if (farm.tutorialUrl.isNotBlank()) {
+            if (currentFarm.tutorialUrl.isNotBlank()) {
                 Button(
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(farm.tutorialUrl))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentFarm.tutorialUrl))
                         context.startActivity(intent)
                     },
                     modifier = Modifier.fillMaxWidth()
